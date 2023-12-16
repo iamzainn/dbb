@@ -715,6 +715,52 @@ EXEC InsertOrder
     @PaymentMethod = 'Cash';
 
 
+
+	--8.1
+
+	CREATE OR ALTER PROCEDURE InsertReservation
+    @CustomerId INT,
+    @ReservationId INT,
+    @TableNumber INT,
+    @PaymentOnReservationTime VARCHAR(10)
+AS
+BEGIN
+    DECLARE @Discount DECIMAL(10, 2) = CASE WHEN EXISTS (SELECT 1 FROM Customer WHERE CustomerID = @CustomerId AND CustomerType = 'Regular Customer') THEN 5.00 ELSE 0.00 END;
+
+    INSERT INTO Reservations (ReservationId, Customer_Id, Reservation_Date, Payment_On_ReservationTime, Discount_On_Reservation, Reservation_Time, Table_Number)
+    VALUES
+        (@ReservationId, @CustomerId, GETDATE(), @PaymentOnReservationTime, @Discount, CONVERT(TIME, GETDATE()), @TableNumber);
+END;
+
+
+EXEC InsertReservation @CustomerId = 7, @ReservationId = 802, @TableNumber = 9, @PaymentOnReservationTime = 'yes';
+
+
+-8.2
+
+CREATE OR ALTER PROCEDURE GetReservationsByDate
+    @SearchDate DATE
+AS
+BEGIN
+    SELECT 
+        R.ReservationId,
+        C.Name AS CustomerName,
+        R.Table_Number,
+        R.Reservation_Time,
+        R.Payment_On_ReservationTime,
+        R.Discount_On_Reservation
+    FROM 
+        Reservations R
+    INNER JOIN 
+        Customer C ON R.Customer_Id = C.CustomerID
+    WHERE 
+        CONVERT(DATE, R.Reservation_Date) = @SearchDate;
+END;
+
+EXEC GetReservationsByDate @SearchDate = '2023-12-16';
+
+
+
 --9
 
 	CREATE OR ALTER PROCEDURE InsertFoodItem
