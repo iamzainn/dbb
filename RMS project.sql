@@ -426,7 +426,7 @@ EXEC GenerateMonthlyRevenue;
 SELECT * FROM MonthlyRevenue;
 
 	--3 Monthly salary per employee.
-	CREATE PROCEDURE GenerateEmployeePerformanceReport
+CREATE or ALter PROCEDURE GenerateEmployeePerformanceReport
 AS
 BEGIN
     SELECT
@@ -452,20 +452,34 @@ END;
 EXEC GenerateEmployeePerformanceReport;
 
 -- View the result
-SELECT * FROM EmployeePerformanceReport;
 
 
+IF OBJECT_ID('EmployeePerformanceReport', 'U') IS NOT NULL
+    DROP TABLE EmployeePerformanceReport;
+
+
+	select * from  EmployeePerformanceReport;
+
+
+--SELECT Sum(MonthlySalary) as MonthlyExpense
+--from EmployeePerformanceReport
+--Group By OrderMonth;
 
 	--4 Successfull reservation count Monthly
-
---Drop table MonthlySuccessfulReservationsReport;
-
-
- CREATE TABLE MonthlySuccessfulReservationsReport (
+	CREATE TABLE MonthlySuccessfulReservationsReport (
     ReservationMonth INT,
     MostSuccessfulTable INT,
     ReservationCount INT
 );
+
+
+Drop table MonthlySuccessfulReservationsReport;
+
+IF OBJECT_ID('GenerateMonthlySuccessfulReservationsReport', 'P') IS NOT NULL
+    DROP PROCEDURE GenerateMonthlySuccessfulReservationsReport;
+
+IF OBJECT_ID('MonthlySuccessfulReservationsReport', 'U') IS NOT NULL
+    DROP TABLE MonthlySuccessfulReservationsReport;
 
 
 
@@ -523,8 +537,8 @@ SELECT * FROM MonthlySuccessfulReservationsReport;
   --  DROP PROCEDURE GeneratePeakReservationHoursReport;
 
 -- Drop the table if it already exists
---IF OBJECT_ID('PeakReservationHoursReport', 'U') IS NOT NULL
-  --  DROP TABLE PeakReservationHoursReport;
+IF OBJECT_ID('PeakReservationHoursReport', 'U') IS NOT NULL
+    DROP TABLE PeakReservationHoursReport;
 
 
 CREATE TABLE PeakReservationHoursReport (
@@ -578,6 +592,44 @@ EXEC GeneratePeakReservationHoursReport;
 
 
 Select * from PeakReservationHoursReport;
+
+
+
+--13
+CREATE PROCEDURE CalculateMonthlyExpense
+AS
+BEGIN
+    DECLARE @Month INT = 1;
+
+    WHILE @Month <= 12
+    BEGIN
+        DECLARE @FirstDayOfMonth DATE = DATEFROMPARTS(YEAR(GETDATE()), @Month, 1);
+        DECLARE @LastDayOfMonth DATE = EOMONTH(@FirstDayOfMonth);
+
+        SELECT 
+            @Month AS Month,
+            SUM(FID.CostPrice * OD.Food_Quantity) AS ProductExpense,
+            SUM(E.PER_ORDER_RATE) AS EmployeeExpense
+        FROM 
+            OrderDetails OD
+        INNER JOIN 
+            FoodItemsDetails FID ON OD.Served_Food_Id = FID.Food_ID
+        INNER JOIN 
+            Employees E ON OD.OrderHandleBy_Employee_Id = E.EmpId
+        WHERE 
+            OD.Order_Id IN (
+                SELECT OrderId
+                FROM Orders
+                WHERE Date_Of_Order BETWEEN @FirstDayOfMonth AND @LastDayOfMonth
+            );
+
+        SET @Month = @Month + 1;
+    END;
+END;
+
+EXECUTE CalculateMonthlyExpense
+
+
 
 
 --6
@@ -637,7 +689,7 @@ BEGIN
 END;
 
 
-EXEC GetTableReservationCount @MonthNumber = 2, @TableNumber = 10;
+EXEC GetTableReservationCount @MonthNumber = 1, @TableNumber = 4;
 
 
 
@@ -706,15 +758,17 @@ END;
 
 
 EXEC InsertOrder
-    @OrderID = 5012,
+    @OrderID = 5016,
     @FoodID = 6,
-    @CustomerID = 7,
+    @CustomerID = 9,
     @EmployeeID = 5,
     @FoodQuantity = 2,
     @PaymentStatus = 'Fulfilled',
     @PaymentMethod = 'Cash';
 
-
+select * from Orders;
+select * from OrderDetails;
+select * from OrdersPayment;
 
 	--8.1
 
@@ -733,8 +787,8 @@ BEGIN
 END;
 
 
-EXEC InsertReservation @CustomerId = 7, @ReservationId = 802, @TableNumber = 9, @PaymentOnReservationTime = 'yes';
-
+EXEC InsertReservation @CustomerId = 9, @ReservationId = 805, @TableNumber = 7, @PaymentOnReservationTime = 'yes';
+select * from Reservations;
 
 -8.2
 
@@ -757,7 +811,7 @@ BEGIN
         CONVERT(DATE, R.Reservation_Date) = @SearchDate;
 END;
 
-EXEC GetReservationsByDate @SearchDate = '2023-12-16';
+
 
 
 
@@ -811,11 +865,11 @@ BEGIN
 
     PRINT 'Order deleted successfully.';
 END;
-EXECUTE DeleteOrder 5;
+
 
 -- Create trigger to capture deleted order information
 
-CREATE TRIGGER TR_DeleteOrder
+CREATE OR ALTER TRIGGER TR_DeleteOrder
 ON Orders
 AFTER DELETE
 AS
@@ -827,9 +881,8 @@ END;
 
 
 
-EXEC DeleteOrder @OrderID = 24;
 
-
+select * from DeletedOrderRecords;
 
 
 CREATE TABLE DeletedOrderRecords (
@@ -880,10 +933,9 @@ BEGIN
     END;
 END;
 
-EXEC UpdateFoodItemSoldPrice @FoodID = 1, @NewSoldPrice = 15.99;
+EXEC UpdateFoodItemSoldPrice @FoodID = 5, @NewSoldPrice = 21.99;
 
 Select * from historyrecordFoodItems;
-
 
 
 
@@ -927,7 +979,7 @@ BEGIN
 END;
 
 
-EXEC UpdateOrderDate @OrderID = 19, @NewDate = '2023-02-01';
+EXEC UpdateOrderDate @OrderID = 25, @NewDate = '2023-02-11';
 
 SELECT * FROM historyrecordOrders;
 
